@@ -1,7 +1,7 @@
 varying vec4 varColor;
 
 void main() {
-    float dist = ATTRIB_position.y;
+    float dist = ATTRIB_position.y * UNI_scaleSize;
     float angle = ATTRIB_position.x;
 
     float x = dist * sin(angle);
@@ -14,7 +14,7 @@ void main() {
     pos.y = s*x - t*y;
     pos.z = ATTRIB_position.z;
     pos.w = 1.0;
-    
+
     pos.y = pos.y * 0.5;
     gl_Position = UNI_MVP * pos;
     varColor = vec4(1.0, 1.0, 1.0, 0.5);

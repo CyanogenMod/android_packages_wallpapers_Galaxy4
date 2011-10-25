@@ -22,9 +22,12 @@ import android.os.Handler;
 import android.os.Message;
 import android.renderscript.RenderScript;
 import android.renderscript.RenderScriptGL;
+import android.util.DisplayMetrics;
 import android.service.wallpaper.WallpaperService;
 import android.view.Surface;
 import android.view.SurfaceHolder;
+import android.view.WindowManager;
+import android.app.Service;
 
 public class Galaxy4Wallpaper extends WallpaperService {
 
@@ -36,6 +39,7 @@ public class Galaxy4Wallpaper extends WallpaperService {
     private class RenderScriptEngine extends Engine {
         private RenderScriptGL mRenderScript = null;
         private GalaxyRS mWallpaperRS = null;
+        private int mDensityDPI;
 
         @Override
         public void onCreate(SurfaceHolder surfaceHolder) {
@@ -43,6 +47,11 @@ public class Galaxy4Wallpaper extends WallpaperService {
             setTouchEventsEnabled(true);
             surfaceHolder.setSizeFromLayout();
             surfaceHolder.setFormat(PixelFormat.RGBA_8888);
+
+            DisplayMetrics metrics = new DisplayMetrics();
+            ((WindowManager) getApplication().getSystemService(Service.WINDOW_SERVICE))
+                    .getDefaultDisplay().getMetrics(metrics);
+            mDensityDPI = metrics.densityDpi;
         }
 
         @Override
@@ -80,7 +89,8 @@ public class Galaxy4Wallpaper extends WallpaperService {
         }
 
         @Override
-        public void onSurfaceChanged(SurfaceHolder surfaceHolder, int format, int width, int height) {
+        public void onSurfaceChanged(SurfaceHolder surfaceHolder,
+                                     int format, int width, int height) {
             super.onSurfaceChanged(surfaceHolder, format, width, height);
 
             if (mRenderScript != null) {
@@ -89,11 +99,12 @@ public class Galaxy4Wallpaper extends WallpaperService {
 
             if (mWallpaperRS == null) {
                 mWallpaperRS = new GalaxyRS();
-                mWallpaperRS.init(mRenderScript, getResources(), width, height);
+                mWallpaperRS.init(mDensityDPI, mRenderScript, getResources(), width, height);
                 mWallpaperRS.start();
+            } else {
+                mWallpaperRS.resize(width, height);
             }
 
-            // mWallpaperRS.resize(width, height);
         }
 
         @Override
@@ -115,12 +126,6 @@ public class Galaxy4Wallpaper extends WallpaperService {
                     mWallpaperRS.stop();
                 }
             }
-        }
-
-        @Override
-        public void onOffsetsChanged(float xOffset, float yOffset, float xOffsetStep,
-                float yOffsetStep, int xPixelOffset, int yPixelOffset) {
-            // mWallpaperRS.setOffset(xOffset, yOffset, xPixelOffset, yPixelOffset);
         }
     }
 }

@@ -24,30 +24,36 @@ import static android.renderscript.Sampler.Value.*;
 public class GalaxyRS {
     public static final int BG_STAR_COUNT = 11000;
     public static final int SPACE_CLOUDSTAR_COUNT = 25;
+    public static final int STATIC_STAR_COUNT = 50;
     private Resources mRes;
-    // rendering context
+
     private RenderScriptGL mRS;
     private ScriptC_galaxy mScript;
 
-    // shader constants
     private ScriptField_VpConsts mPvConsts;
-    private ScriptField_Particle spaceClouds;
-    private ScriptField_Particle bgStars;
-    private Mesh spaceCloudsMesh;
-    private Mesh bgStarsMesh;
+    private ScriptField_Particle mSpaceClouds;
+    private ScriptField_Particle mBgStars;
+    private ScriptField_Particle mStaticStars;
+    private Mesh mSpaceCloudsMesh;
+    private Mesh mBgStarsMesh;
+    private Mesh mStaticStarsMesh;
 
-    int mHeight;
-    int mWidth;
-    boolean inited = false;
+    private int mHeight;
+    private int mWidth;
+    private boolean mInited = false;
+    private int mDensityDPI;
 
     private final BitmapFactory.Options mOptionsARGB = new BitmapFactory.Options();
 
-    private Allocation cloudAllocation;
-    private Allocation fgStarAllocation;
-    private Allocation bgAllocation;
+    private Allocation mCloudAllocation;
+    private Allocation mStaticStarAllocation;
+    private Allocation mStaticStar2Allocation;
+    private Allocation mBgAllocation;
 
-    public void init(RenderScriptGL rs, Resources res, int width, int height) {
-        if (!inited) {
+    public void init(int dpi, RenderScriptGL rs, Resources res, int width, int height) {
+        if (!mInited) {
+            mDensityDPI = dpi;
+
             mRS = rs;
             mRes = res;
 
@@ -57,23 +63,31 @@ public class GalaxyRS {
             mOptionsARGB.inScaled = false;
             mOptionsARGB.inPreferredConfig = Bitmap.Config.ARGB_8888;
 
-            spaceClouds = new ScriptField_Particle(mRS, SPACE_CLOUDSTAR_COUNT);
+            mSpaceClouds = new ScriptField_Particle(mRS, SPACE_CLOUDSTAR_COUNT);
             Mesh.AllocationBuilder smb = new Mesh.AllocationBuilder(mRS);
-            smb.addVertexAllocation(spaceClouds.getAllocation());
+            smb.addVertexAllocation(mSpaceClouds.getAllocation());
             smb.addIndexSetType(Mesh.Primitive.POINT);
-            spaceCloudsMesh = smb.create();
+            mSpaceCloudsMesh = smb.create();
 
-            bgStars = new ScriptField_Particle(mRS, BG_STAR_COUNT);
+            mBgStars = new ScriptField_Particle(mRS, BG_STAR_COUNT);
             Mesh.AllocationBuilder smb2 = new Mesh.AllocationBuilder(mRS);
-            smb2.addVertexAllocation(bgStars.getAllocation());
+            smb2.addVertexAllocation(mBgStars.getAllocation());
             smb2.addIndexSetType(Mesh.Primitive.POINT);
-            bgStarsMesh = smb2.create();
+            mBgStarsMesh = smb2.create();
+
+            mStaticStars = new ScriptField_Particle(mRS, STATIC_STAR_COUNT);
+            Mesh.AllocationBuilder smb3 = new Mesh.AllocationBuilder(mRS);
+            smb3.addVertexAllocation(mStaticStars.getAllocation());
+            smb3.addIndexSetType(Mesh.Primitive.POINT);
+            mStaticStarsMesh = smb3.create();
 
             mScript = new ScriptC_galaxy(mRS, mRes, R.raw.galaxy);
-            mScript.set_spaceCloudsMesh(spaceCloudsMesh);
-            mScript.bind_spaceClouds(spaceClouds);
-            mScript.set_bgStarsMesh(bgStarsMesh);
-            mScript.bind_bgStars(bgStars);
+            mScript.set_spaceCloudsMesh(mSpaceCloudsMesh);
+            mScript.bind_spaceClouds(mSpaceClouds);
+            mScript.set_bgStarsMesh(mBgStarsMesh);
+            mScript.bind_bgStars(mBgStars);
+            mScript.set_staticStarsMesh(mStaticStarsMesh);
+            mScript.bind_staticStars(mStaticStars);
 
             mPvConsts = new ScriptField_VpConsts(mRS, 1);
 
@@ -84,13 +98,11 @@ public class GalaxyRS {
 
             loadTextures();
 
+            mScript.set_densityDPI(mDensityDPI);
             mRS.bindRootScript(mScript);
-
             mScript.invoke_positionParticles();
-
-            inited = true;
+            mInited = true;
         }
-
     }
 
     private Allocation loadTexture(int id) {
@@ -98,24 +110,18 @@ public class GalaxyRS {
         return allocation;
     }
 
-    private Allocation loadTextureARGB(int id) {
-        Bitmap b = BitmapFactory.decodeResource(mRes, id, mOptionsARGB);
-        return Allocation.createFromBitmap(mRS, b,
-                Allocation.MipmapControl.MIPMAP_ON_SYNC_TO_TEXTURE,
-                Allocation.USAGE_GRAPHICS_TEXTURE);
-    }
-
     private void loadTextures() {
-        fgStarAllocation = loadTexture(R.drawable.fgstar);
-        cloudAllocation = loadTexture(R.drawable.cloud);
-        bgAllocation = loadTexture(R.drawable.bg);
-        mScript.set_textureSpaceCloud(cloudAllocation);
-        mScript.set_textureFGStar(fgStarAllocation);
-        mScript.set_textureBg(bgAllocation);
+        mStaticStarAllocation = loadTexture(R.drawable.staticstar);
+        mStaticStar2Allocation = loadTexture(R.drawable.staticstar2);
+        mCloudAllocation = loadTexture(R.drawable.cloud);
+        mBgAllocation = loadTexture(R.drawable.bg);
+        mScript.set_textureSpaceCloud(mCloudAllocation);
+        mScript.set_textureStaticStar(mStaticStarAllocation);
+        mScript.set_textureStaticStar2(mStaticStar2Allocation);
+        mScript.set_textureBg(mBgAllocation);
     }
 
     private Matrix4f getProjectionNormalized(int w, int h) {
-        // range -1,1 in the narrow axis at z = 0.
         Matrix4f m1 = new Matrix4f();
         Matrix4f m2 = new Matrix4f();
 
@@ -129,33 +135,28 @@ public class GalaxyRS {
 
         m2.loadRotate(180, 0, 1, 0);
         m1.loadMultiply(m1, m2);
-
         m2.loadScale(-1, 1, 1);
         m1.loadMultiply(m1, m2);
-
         m2.loadTranslate(0, 0, 1);
         m1.loadMultiply(m1, m2);
         return m1;
     }
 
-    private void updateProjectionMatrices() {
+    private void updateProjectionMatrices(int w, int h) {
+        mWidth = w;
+        mHeight = h;
         Matrix4f proj = new Matrix4f();
         proj.loadOrthoWindow(mWidth, mHeight);
-
-        Log.d("------------------- UPDATE PROJECTION MATRICES", mWidth + "  " + mHeight);
-
         Matrix4f projNorm = getProjectionNormalized(mWidth, mHeight);
         ScriptField_VpConsts.Item i = new ScriptField_VpConsts.Item();
-        // i.Proj = projNorm;
         i.MVP = projNorm;
+        i.scaleSize = mDensityDPI / 240.0f;
         mPvConsts.set(i, 0, true);
-
+        mScript.invoke_positionParticles();
     }
 
-    private void createProgramVertex() {
-
-        // /////////////////// fixed function bg
-        ProgramVertexFixedFunction.Constants mPvOrthoAlloc = 
+    public void createProgramVertex() {
+        ProgramVertexFixedFunction.Constants mPvOrthoAlloc =
             new ProgramVertexFixedFunction.Constants(mRS);
         Matrix4f proj = new Matrix4f();
         proj.loadOrthoWindow(mWidth, mHeight);
@@ -165,17 +166,13 @@ public class GalaxyRS {
         ProgramVertex pv = pvb.create();
         ((ProgramVertexFixedFunction) pv).bindConstants(mPvOrthoAlloc);
         mScript.set_vertBg(pv);
-
-        // ///////////////////////////////////////////////////////////////////////
-        // //////////////////////////////////////////////////////////////////
-
-        updateProjectionMatrices();
+        updateProjectionMatrices(mWidth, mHeight);
 
         // cloud
         ProgramVertex.Builder builder = new ProgramVertex.Builder(mRS);
         builder.setShader(mRes, R.raw.spacecloud_vs);
         builder.addConstant(mPvConsts.getType());
-        builder.addInput(spaceCloudsMesh.getVertexAllocation(0).getType().getElement());
+        builder.addInput(mSpaceCloudsMesh.getVertexAllocation(0).getType().getElement());
         ProgramVertex pvs = builder.create();
         pvs.bindConstants(mPvConsts.getAllocation(), 0);
         mRS.bindProgramVertex(pvs);
@@ -186,24 +183,33 @@ public class GalaxyRS {
         builder = new ProgramVertex.Builder(mRS);
         builder.setShader(mRes, R.raw.bgstar_vs);
         builder.addConstant(mPvConsts.getType());
-        builder.addInput(bgStarsMesh.getVertexAllocation(0).getType().getElement());
+        builder.addInput(mBgStarsMesh.getVertexAllocation(0).getType().getElement());
         pvs = builder.create();
         pvs.bindConstants(mPvConsts.getAllocation(), 0);
         mRS.bindProgramVertex(pvs);
         mScript.set_vertBgStars(pvs);
+
+        // static stars
+        builder = new ProgramVertex.Builder(mRS);
+        builder.setShader(mRes, R.raw.staticstar_vs);
+        builder.addConstant(mPvConsts.getType());
+        builder.addInput(mBgStarsMesh.getVertexAllocation(0).getType().getElement());
+        pvs = builder.create();
+        pvs.bindConstants(mPvConsts.getAllocation(), 0);
+        mRS.bindProgramVertex(pvs);
+        mScript.set_vertStaticStars(pvs);
     }
 
     private void createProgramFragment() {
-        // fixed function bg
-
+        // bg
         Sampler.Builder samplerBuilder = new Sampler.Builder(mRS);
-        samplerBuilder.setMinification(NEAREST);
-        samplerBuilder.setMagnification(NEAREST);
+        samplerBuilder.setMinification(LINEAR);
+        samplerBuilder.setMagnification(LINEAR);
         samplerBuilder.setWrapS(WRAP);
         samplerBuilder.setWrapT(WRAP);
         Sampler sn = samplerBuilder.create();
-        ProgramFragmentFixedFunction.Builder builderff = 
-            new ProgramFragmentFixedFunction.Builder(mRS);
+        ProgramFragmentFixedFunction.Builder builderff =
+                new ProgramFragmentFixedFunction.Builder(mRS);
         builderff = new ProgramFragmentFixedFunction.Builder(mRS);
         builderff.setTexture(ProgramFragmentFixedFunction.Builder.EnvMode.REPLACE,
                 ProgramFragmentFixedFunction.Builder.Format.RGB, 0);
@@ -211,31 +217,32 @@ public class GalaxyRS {
         mScript.set_fragBg(pfff);
         pfff.bindSampler(sn, 0);
 
-        ////////////////////////////////////////////////////////////////////
-
-        // cloud fragment
+        // cloud
         ProgramFragment.Builder builder = new ProgramFragment.Builder(mRS);
 
         builder.setShader(mRes, R.raw.spacecloud_fs);
-        // multiple textures
-        builder.addTexture(Program.TextureType.TEXTURE_2D);
         builder.addTexture(Program.TextureType.TEXTURE_2D);
 
         ProgramFragment pf = builder.create();
         pf.bindSampler(Sampler.CLAMP_LINEAR(mRS), 0);
         mScript.set_fragSpaceClouds(pf);
 
-        // bg star fragment
+        // bg stars
         builder = new ProgramFragment.Builder(mRS);
         builder.setShader(mRes, R.raw.bgstar_fs);
         pf = builder.create();
         mScript.set_fragBgStars(pf);
 
+        // static stars
+        builder = new ProgramFragment.Builder(mRS);
+        builder.setShader(mRes, R.raw.staticstar_fs);
+        builder.addTexture(Program.TextureType.TEXTURE_2D);
+        builder.addTexture(Program.TextureType.TEXTURE_2D);
+        pf = builder.create();
+        mScript.set_fragStaticStars(pf);
     }
 
     private void createProgramRaster() {
-        // Program raster is primarily used to specify whether point sprites are enabled and
-        // to control the culling mode. By default, back faces are culled.
         ProgramRaster.Builder builder = new ProgramRaster.Builder(mRS);
         builder.setPointSpriteEnabled(true);
         ProgramRaster pr = builder.create();
@@ -243,23 +250,9 @@ public class GalaxyRS {
     }
 
     private void createProgramFragmentStore() {
-        // ProgramStore contains a set of parameters that control how the graphics hardware handles
-        // writes to the framebuffer.
-        // 
-        // It could be used to:
-        //     enable/disable depth testing
-        //     specify wheather depth writes are performed
-        //     setup various blending modes for use in effects like transparency
-        //     define write masks for color components written into the framebuffer
-
         ProgramStore.Builder builder = new ProgramStore.Builder(mRS);
-        // builder.setBlendFunc(BlendSrcFunc.SRC_ALPHA,
-        // BlendDstFunc.ONE_MINUS_SRC_ALPHA );
         builder.setBlendFunc(BlendSrcFunc.SRC_ALPHA, BlendDstFunc.ONE);
-        // why alpha no work with additive blending?
-        // builder.setBlendFunc(BlendSrcFunc.ONE, BlendDstFunc.ONE);
         mRS.bindProgramStore(builder.create());
-
     }
 
     public void start() {
@@ -270,8 +263,9 @@ public class GalaxyRS {
         mRS.bindRootScript(null);
     }
 
-    public void setOffset(float xOffset, float yOffset, int xPixels, int yPixels) {
-        mScript.set_xOffset(xOffset);
+    public void resize(int width, int height) {
+        mWidth = width;
+        mHeight = height;
+        createProgramVertex();
     }
-
 }
