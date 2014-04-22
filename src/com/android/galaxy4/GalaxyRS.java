@@ -152,7 +152,7 @@ public class GalaxyRS {
         Matrix4f projNorm = getProjectionNormalized(mWidth, mHeight);
         ScriptField_VpConsts.Item i = new ScriptField_VpConsts.Item();
         i.MVP = projNorm;
-        i.scaleSize = mDensityDPI / 240.0f;
+        i.scaleSize = mDensityDPI / 120.0f;
         mPvConsts.set(i, 0, true);
         mScript.invoke_positionParticles();
     }
