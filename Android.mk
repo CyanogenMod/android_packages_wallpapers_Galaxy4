@@ -23,6 +23,7 @@ LOCAL_SRC_FILES := $(call all-subdir-java-files) $(call all-renderscript-files-u
 
 LOCAL_PACKAGE_NAME := Galaxy4
 LOCAL_CERTIFICATE := shared
+LOCAL_SDK_VERSION := 14
 
 LOCAL_PROGUARD_FLAG_FILES := proguard.cfg
 
