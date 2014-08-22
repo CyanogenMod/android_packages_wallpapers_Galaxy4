@@ -3,7 +3,7 @@
       package="com.android.galaxy4"
       android:versionCode="1"
       android:versionName="1.0">
-    <uses-sdk android:minSdkVersion="13" />
+    <uses-sdk android:minSdkVersion="14" />
     
     <uses-feature android:name="android.software.live_wallpaper" />
 
