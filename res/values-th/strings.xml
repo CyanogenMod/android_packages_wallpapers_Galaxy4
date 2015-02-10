@@ -15,6 +15,5 @@
      limitations under the License.
 -->
 <resources>
-  <string name="wallpaper_label">黑洞</string>
-  <string name="wallpaper_author">Google</string>
+  <string name="wallpaper_label">หลุมดำ</string>
 </resources>
