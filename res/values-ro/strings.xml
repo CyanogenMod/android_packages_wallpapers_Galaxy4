@@ -16,4 +16,5 @@
 -->
 <resources>
   <string name="wallpaper_label">Gaură Neagră</string>
+  <string name="wallpaper_author">Google</string>
 </resources>
