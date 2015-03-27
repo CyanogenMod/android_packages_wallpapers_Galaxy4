@@ -4,10 +4,12 @@
       android:versionCode="1"
       android:versionName="1.0">
     <uses-sdk android:minSdkVersion="14" />
-    
+
     <uses-feature android:name="android.software.live_wallpaper" />
 
-    <application android:icon="@drawable/icon" android:label="@string/wallpaper_label">
+    <application
+        android:icon="@mipmap/ic_launcher_wallpaper"
+        android:label="@string/wallpaper_label">
         <activity android:name=".Galaxy4"
                   android:theme="@android:style/Theme.NoTitleBar"
                   android:label="@string/wallpaper_label"
