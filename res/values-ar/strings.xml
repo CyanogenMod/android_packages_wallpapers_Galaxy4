@@ -16,4 +16,5 @@
 -->
 <resources>
   <string name="wallpaper_label">ثقب أسود</string>
+  <string name="wallpaper_author">جوجل</string>
 </resources>
